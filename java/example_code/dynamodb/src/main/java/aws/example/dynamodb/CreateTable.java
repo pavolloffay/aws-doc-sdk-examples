@@ -31,6 +31,10 @@ import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 
 /**
  * Create a DynamoDB table.
@@ -43,8 +47,7 @@ import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
  */
 public class CreateTable
 {
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) throws InterruptedException {
         final String USAGE = "\n" +
             "Usage:\n" +
             "    CreateTable <table>\n\n" +
@@ -61,6 +64,10 @@ public class CreateTable
         /* Read the name from command args */
         String table_name = args[0];
 
+        Tracer tracer = GlobalOpenTelemetry.getTracer("example.dynamodb");
+        Span span = tracer.spanBuilder("main-span").startSpan();
+        Scope scope = span.makeCurrent();
+
         System.out.format(
             "Creating table \"%s\" with a simple primary key: \"Name\".\n",
             table_name);
@@ -73,7 +80,10 @@ public class CreateTable
                      new Long(10), new Long(10)))
             .withTableName(table_name);
 
-        final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
+        AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
+        builder.setRegion("us-east-1");
+        final AmazonDynamoDB ddb = builder.build();
+
 
         try {
             CreateTableResult result = ddb.createTable(request);
@@ -83,5 +93,9 @@ public class CreateTable
             System.exit(1);
         }
         System.out.println("Done!");
+
+        scope.close();
+        span.end();
+        Thread.sleep(10000);
     }
 }
