@@ -34,13 +34,22 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.CreateBucketRequest;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.List;
 
 public class App {
 
     private static AmazonS3 s3;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
+
+        Tracer tracer = GlobalOpenTelemetry.getTracer("example.s3");
+        Span span = tracer.spanBuilder("main-span").startSpan();
+        Scope scope = span.makeCurrent();
+
         if (args.length < 2) {
             System.out.format("Usage: <the bucket name> <the AWS Region to use>\n" +
                     "Example: my-test-bucket us-east-2\n");
@@ -51,7 +60,7 @@ public class App {
         String region = args[1];
 
         s3 = AmazonS3ClientBuilder.standard()
-                .withCredentials(new ProfileCredentialsProvider())
+//                .withCredentials(new ProfileCredentialsProvider())
                 .withRegion(region)
                 .build();
 
@@ -86,6 +95,9 @@ public class App {
         // Confirm that the bucket was deleted.
         ListMyBuckets();
 
+        scope.close();
+        span.end();
+        Thread.sleep(12000);
     }
 
     private static void ListMyBuckets() {

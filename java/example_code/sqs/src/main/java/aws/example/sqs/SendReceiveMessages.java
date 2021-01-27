@@ -22,14 +22,24 @@
  * limitations under the License.
  */
 package aws.example.sqs;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.AmazonSQSException;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
+import com.amazonaws.services.sqs.model.DeleteMessageResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
+import com.amazonaws.services.sqs.model.SendMessageBatchResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.SendMessageResult;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import java.util.Date;
 import java.util.List;
 
@@ -37,12 +47,20 @@ public class SendReceiveMessages
 {
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
 
-    public static void main(String[] args)
-    {
-        final AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
+    public static void main(String[] args) throws InterruptedException {
+        Tracer tracer = GlobalOpenTelemetry.getTracer("sqs.example");
+        Span span = tracer.spanBuilder("main").startSpan();
+        System.out.println(span);
+        Scope scope = span.makeCurrent();
+
+        AmazonSQSClientBuilder builder = AmazonSQSClientBuilder.standard();
+        builder.setRegion("us-east-1");
+        final AmazonSQS sqs = builder.build();
+
 
         try {
             CreateQueueResult create_result = sqs.createQueue(QUEUE_NAME);
+            System.out.println(create_result);
         } catch (AmazonSQSException e) {
             if (!e.getErrorCode().equals("QueueAlreadyExists")) {
                 throw e;
@@ -55,8 +73,8 @@ public class SendReceiveMessages
                 .withQueueUrl(queueUrl)
                 .withMessageBody("hello world")
                 .withDelaySeconds(5);
-        sqs.sendMessage(send_msg_request);
-
+        SendMessageResult sendMessageResult = sqs.sendMessage(send_msg_request);
+        System.out.println(sendMessageResult);
 
         // Send multiple messages to the queue
         SendMessageBatchRequest send_batch_request = new SendMessageBatchRequest()
@@ -67,14 +85,21 @@ public class SendReceiveMessages
                         new SendMessageBatchRequestEntry(
                                 "msg_2", "Hello from message 2")
                                 .withDelaySeconds(10));
-        sqs.sendMessageBatch(send_batch_request);
+        SendMessageBatchResult sendMessageBatchResult = sqs.sendMessageBatch(send_batch_request);
+        System.out.println(sendMessageBatchResult);
 
         // receive messages from the queue
         List<Message> messages = sqs.receiveMessage(queueUrl).getMessages();
 
         // delete messages from the queue
         for (Message m : messages) {
-            sqs.deleteMessage(queueUrl, m.getReceiptHandle());
+            DeleteMessageResult deleteMessageResult = sqs
+                .deleteMessage(queueUrl, m.getReceiptHandle());
+            System.out.println(deleteMessageResult);
         }
+
+        scope.close();
+        span.end();
+        Thread.sleep(10000);
     }
 }

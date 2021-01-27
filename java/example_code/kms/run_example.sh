@@ -9,4 +9,15 @@ export className=$1
 echo "## Running $className..."
 shift
 echo "## arguments $@..."
+
+
+# run  ./run_example.sh ViewGrants 1234abcd-12ab-34cd-56ef-1234567890ab
+export JAVA_TOOL_OPTIONS="-javaagent:${HOME}/Downloads/hypertrace-agent-all.jar"
+export OTEL_EXPORTER=jaeger
+export HT_SERVICE_NAME=sqs-test
+
+export AWS_DEFAULT_REGION=us-west-2
+export AWS_ACCESS_KEY_ID=
+export AWS_SECRET_ACCESS_KEY=
+
 mvn exec:java -Dexec.mainClass="aws.example.kms.$className" -Dexec.args="$@" -Dexec.cleanupDaemonThreads=false
