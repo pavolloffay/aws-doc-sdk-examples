@@ -22,6 +22,10 @@
  * limitations under the License.
  */
 package aws.example.sqs;
+import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
+import com.amazon.sqs.javamessaging.ProviderConfiguration;
+import com.amazon.sqs.javamessaging.SQSConnection;
+import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
@@ -42,12 +46,13 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import java.util.Date;
 import java.util.List;
+import javax.jms.JMSException;
 
 public class SendReceiveMessages
 {
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, JMSException {
         Tracer tracer = GlobalOpenTelemetry.getTracer("sqs.example");
         Span span = tracer.spanBuilder("main").startSpan();
         System.out.println(span);
@@ -96,6 +101,22 @@ public class SendReceiveMessages
             DeleteMessageResult deleteMessageResult = sqs
                 .deleteMessage(queueUrl, m.getReceiptHandle());
             System.out.println(deleteMessageResult);
+        }
+
+        // SQS with JMS
+        SQSConnectionFactory connectionFactory = new SQSConnectionFactory(
+            new ProviderConfiguration(),
+            sqs);
+
+// Create the connection.
+        SQSConnection connection = connectionFactory.createConnection();
+        // Get the wrapped client
+        AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
+
+// Create an SQS queue named MyQueue, if it doesn't already exist
+        if (!client.queueExists("MyQueue")) {
+            CreateQueueResult result = client.createQueue("MyQueue");
+            System.out.println(result);
         }
 
         scope.close();

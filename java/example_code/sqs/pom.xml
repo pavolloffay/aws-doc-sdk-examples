@@ -8,9 +8,10 @@
   <name>Amazon SQS Examples</name>
   <url>http://maven.apache.org</url>
   <properties>
+<!--    1.11.75 -->
      <maven.compiler.source>1.7</maven.compiler.source>
      <maven.compiler.target>1.7</maven.compiler.target>
-    <aws.java.sdk.version>1.11.228</aws.java.sdk.version><!-- 1.11.87 -->
+    <aws.java.sdk.version>1.11.75</aws.java.sdk.version><!-- 1.11.87 -->
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -61,6 +62,12 @@
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
       <version>[4.4,)</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>amazon-sqs-java-messaging-lib</artifactId>
+      <version>1.0.8</version>
     </dependency>
 
     <dependency>
