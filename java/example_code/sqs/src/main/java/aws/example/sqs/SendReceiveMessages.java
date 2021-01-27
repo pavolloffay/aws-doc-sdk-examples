@@ -31,6 +31,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.AmazonSQSException;
+import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.DeleteMessageResult;
 import com.amazonaws.services.sqs.model.Message;
@@ -45,8 +46,11 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.jms.JMSException;
+import org.springframework.jms.core.JmsTemplate;
 
 public class SendReceiveMessages
 {
@@ -61,6 +65,7 @@ public class SendReceiveMessages
         AmazonSQSClientBuilder builder = AmazonSQSClientBuilder.standard();
         builder.setRegion("us-east-1");
         final AmazonSQS sqs = builder.build();
+        System.out.println(QUEUE_NAME);
 
 
         try {
@@ -114,13 +119,42 @@ public class SendReceiveMessages
         AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
 
 // Create an SQS queue named MyQueue, if it doesn't already exist
-        if (!client.queueExists("MyQueue")) {
-            CreateQueueResult result = client.createQueue("MyQueue");
-            System.out.println(result);
+        for (int i = 0; i < 3; i++) {
+            if (!client.queueExists("MyQueue2")) {
+                CreateQueueResult result = client.createQueue("MyQueue");
+                System.out.println(result);
+            }
+        }
+
+// Create an Amazon SQS FIFO queue named MyQueue.fifo, if it doesn't already exist
+        if (!client.queueExists("MyQueue.fifo")) {
+            System.out.println("fifo");
+            Map<String, String> attributes = new HashMap<String, String>();
+            attributes.put("FifoQueue", "true");
+            attributes.put("ContentBasedDeduplication", "true");
+            client.createQueue(new CreateQueueRequest().withQueueName("MyQueue.fifo").withAttributes(attributes));
+        }
+
+
+        try {
+            spring(connectionFactory);
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
         }
 
         scope.close();
         span.end();
         Thread.sleep(10000);
+        System.out.println("end");
+    }
+
+    static void spring(SQSConnectionFactory connectionFactory) {
+        JmsTemplate jmsTemplate = new JmsTemplate(connectionFactory);
+        jmsTemplate.setDefaultDestinationName(QUEUE_NAME);
+
+        for (int i = 0; i < 10; i++) {
+//        javax.jms.Message foo = jmsTemplate.receive("foo");
+            jmsTemplate.convertAndSend(QUEUE_NAME, "{\"a\": \"b\"}");
+        }
     }
 }
